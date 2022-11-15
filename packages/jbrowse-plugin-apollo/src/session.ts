@@ -27,6 +27,7 @@ import {
 
 import { ApolloInternetAccountModel } from './ApolloInternetAccount/model'
 import { BackendDriver, CollaborationServerDriver } from './BackendDrivers'
+import { createFetchErrorMessage } from './util'
 
 export interface ApolloSession extends AbstractSessionModel {
   apolloDataStore: ClientDataStoreType
@@ -278,16 +279,11 @@ export function extendSession(sessionModel: IAnyModelType) {
             continue
           }
           if (!response.ok) {
-            let errorMessage
-            try {
-              errorMessage = yield response.text()
-            } catch (error) {
-              errorMessage = ''
-            }
-            const responseMessage = `Failed to fetch assemblies — ${
-              response.status
-            } ${response.statusText}${errorMessage ? ` (${errorMessage})` : ''}`
-            console.error(responseMessage)
+            const errorMessage = yield createFetchErrorMessage(
+              response,
+              'Failed to fetch assemblies',
+            )
+            console.error(errorMessage)
             continue
           }
           let fetchedAssemblies
