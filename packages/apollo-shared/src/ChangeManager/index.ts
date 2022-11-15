@@ -29,7 +29,6 @@ export const changes = {
 }
 
 export * from './changes'
-export * from './ChangeManager'
 export * from './ChangeTypes'
 
 export * from './changes/abstract'
