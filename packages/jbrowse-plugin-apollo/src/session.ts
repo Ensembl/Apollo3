@@ -212,6 +212,10 @@ export function extendSession(sessionModel: IAnyModelType) {
                 type: 'LinearApolloDisplay',
                 displayId: `apollo_track_${assembly.name}-LinearApolloDisplay`,
               },
+              {
+                type: 'SixFrameFeatureDisplay',
+                displayId: `apollo_track_${assembly.name}-SixFrameFeatureDisplay`,
+              },
             ],
           })
         }
