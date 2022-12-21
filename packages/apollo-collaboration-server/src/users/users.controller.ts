@@ -1,4 +1,5 @@
 import { Body, Controller, Get, Param, Post, Req } from '@nestjs/common'
+import { DecodedJWT } from 'apollo-shared'
 import { Request } from 'express'
 
 import { Role } from '../utils/role/role.enum'
@@ -38,11 +39,10 @@ export class UsersController {
    */
   @Post('userLocation')
   userLocation(@Body() userLocation: UserLocationDto, @Req() req: Request) {
-    const { authorization } = req.headers
-    if (!authorization) {
-      throw new Error('No "authorization" header')
+    const { user } = req as unknown as { user: DecodedJWT }
+    if (!user) {
+      throw new Error('No user attached to request')
     }
-    const [, token] = authorization.split(' ')
-    return this.usersService.broadcastLocation(userLocation, token)
+    return this.usersService.broadcastLocation(userLocation, user)
   }
 }

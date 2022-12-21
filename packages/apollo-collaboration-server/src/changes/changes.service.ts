@@ -25,6 +25,7 @@ import {
   AssemblySpecificChange,
   Change as BaseChange,
   CopyFeatureChange,
+  DecodedJWT,
   FeatureChange,
   validationRegistry,
 } from 'apollo-shared'
@@ -59,7 +60,7 @@ export class ChangesService {
 
   private readonly logger = new Logger(ChangesService.name)
 
-  async create(change: BaseChange, user: string, userToken: string) {
+  async create(change: BaseChange, user: DecodedJWT) {
     this.logger.debug(`Requested change: ${JSON.stringify(change)}`)
     const validationResult = await validationRegistry.backendPreValidate(change)
     if (!validationResult.ok) {
@@ -113,7 +114,7 @@ export class ChangesService {
         [
           {
             ...change,
-            user,
+            user: user.email,
             sequence: await this.countersService.getNextSequenceValue(
               'changeCounter',
             ),
@@ -167,8 +168,8 @@ export class ChangesService {
       for (const refName of refNames) {
         messages.push({
           changeInfo: newChange.toJSON(),
-          userName: user,
-          userToken,
+          userName: user.username,
+          userToken: `${user.id}-${user.iat}`,
           channel: `${targetAssemblyId}-${refName}`,
           changeSequence: changeDoc.sequence,
         })
@@ -177,8 +178,8 @@ export class ChangesService {
       for (const refName of refNames) {
         messages.push({
           changeInfo: change.toJSON(),
-          userName: user,
-          userToken,
+          userName: user.username,
+          userToken: `${user.id}-${user.iat}`,
           channel: `${change.assembly}-${refName}`,
           changeSequence: changeDoc.sequence,
         })
@@ -186,8 +187,8 @@ export class ChangesService {
     } else {
       messages.push({
         changeInfo: change.toJSON(),
-        userName: user,
-        userToken,
+        userName: user.username,
+        userToken: `${user.id}-${user.iat}`,
         channel: 'COMMON',
         changeSequence: changeDoc.sequence,
       })

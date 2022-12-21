@@ -4,3 +4,8 @@ export interface JWTPayload {
   roles: ('admin' | 'user' | 'readOnly')[]
   id: string
 }
+
+export interface DecodedJWT extends JWTPayload {
+  iat: number
+  exp: number
+}

@@ -8,7 +8,7 @@ import {
   isAbstractMenuManager,
 } from '@jbrowse/core/util'
 import type AuthenticationPlugin from '@jbrowse/plugin-authentication'
-import { Change, JWTPayload, SerializedChange } from 'apollo-shared'
+import { Change, DecodedJWT, SerializedChange } from 'apollo-shared'
 import jwtDecode from 'jwt-decode'
 import { autorun } from 'mobx'
 import { Instance, flow, getRoot, types } from 'mobx-state-tree'
@@ -87,7 +87,7 @@ const stateModelFactory = (
         if (!token) {
           return undefined
         }
-        const dec = jwtDecode(token) as JWTPayload
+        const dec = jwtDecode(token) as DecodedJWT
         return dec.roles
       },
       getUserId() {
@@ -95,7 +95,7 @@ const stateModelFactory = (
         if (!token) {
           return undefined
         }
-        const dec = jwtDecode(token) as JWTPayload
+        const dec = jwtDecode(token) as DecodedJWT
         return dec.id
       },
     }))
@@ -366,7 +366,7 @@ const stateModelFactory = (
         )
       },
       initializeFromToken(token: string) {
-        const payload = jwtDecode(token) as JWTPayload
+        const payload = jwtDecode(token) as DecodedJWT
         this.initialize(payload.roles)
       },
       initialize(role: Role) {

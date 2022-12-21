@@ -1,11 +1,11 @@
 import { Injectable, Logger } from '@nestjs/common'
 import { InjectModel } from '@nestjs/mongoose'
 import { UserDocument, User as UserSchema } from 'apollo-schemas'
+import { DecodedJWT } from 'apollo-shared'
 import { Model } from 'mongoose'
 
 import { UserLocationMessage } from '../messages/entities/message.entity'
 import { MessagesGateway } from '../messages/messages.gateway'
-import { getDecodedAccessToken } from '../utils/commonUtilities'
 import { CreateUserDto, UserLocationDto } from './dto/create-user.dto'
 
 export interface User {
@@ -59,7 +59,7 @@ export class UsersService {
    * @param userLocation - user's location information
    * @param token - user's token, email will be decoded from the token
    */
-  broadcastLocation(userLocation: UserLocationDto, token: string) {
+  broadcastLocation(userLocation: UserLocationDto, user: DecodedJWT) {
     const { BROADCAST_USER_LOCATION } = process.env
     const channel = 'USER_LOCATION'
 
@@ -68,17 +68,16 @@ export class UsersService {
     }
     const broadcast: boolean = JSON.parse(BROADCAST_USER_LOCATION)
     if (broadcast) {
-      const jwtPayload = getDecodedAccessToken(token)
-      const { email: user, username: userName } = jwtPayload
+      const { email, username: userName } = user
       const msg: UserLocationMessage = {
         ...userLocation,
         channel,
         userName,
-        userToken: token,
+        userToken: `${user.id}-${user.iat}`,
       }
       this.logger.debug(
         `Broadcasting user ${JSON.stringify(
-          user,
+          email,
         )} location to channel "${channel}", the message is "${JSON.stringify(
           msg,
         )}"`,
