@@ -1,0 +1,52 @@
+name: Deploy to OpenStack
+
+on:
+  push:
+    branches:
+      - dev/github-actions
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    environment: Openstack
+
+    strategy:
+      matrix:
+        node-version: [19.x]
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+
+      - name: Use Node.js ${{ matrix.node-version }}
+        uses: actions/setup-node@v2
+        with:
+          node-version: ${{ matrix.node-version }}
+
+      - name: Install dependencies
+        run: yarn install
+
+      - name: Lint codebase
+        run: yarn eslint --ext .js,.ts,.jsx,.tsx .
+
+      - name: Build shared
+        run: yarn build
+        working-directory: packages/apollo-shared
+
+      - name: Build collaboration server
+        run: yarn build
+        working-directory: packages/apollo-collaboration-server
+
+      - name: Build plugin
+        run: yarn build
+        working-directory: packages/jbrowse-plugin-apollo
+
+      - name: Start SSH Agent, add SSH key and deploy to openstack
+        run: |
+          eval `ssh-agent -s`
+          echo "${{ secrets.KEY }}" | ssh-add -
+          scp -o StrictHostKeyChecking=no -r ./* ${{ vars.OS_USERNAME }}@${{ vars.OS_SERVER }}:/home/ubuntu/github-workflow/
+          ssh -o StrictHostKeyChecking=no ${{ vars.OS_USERNAME }}@${{ vars.OS_SERVER }} 'cd /home/ubuntu/github-workflow/ && ls -la'
+        env:
+          SSH_AUTH_SOCK: /tmp/ssh-agent.sock
