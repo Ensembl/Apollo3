@@ -11,42 +11,40 @@ jobs:
 
     environment: Openstack
 
-    strategy:
-      matrix:
-        node-version: [19.x]
+    # strategy:
+    #   matrix:
+    #     node-version: [19.x]
 
     steps:
       - name: Checkout code
         uses: actions/checkout@v2
 
-      - name: Use Node.js ${{ matrix.node-version }}
-        uses: actions/setup-node@v2
-        with:
-          node-version: ${{ matrix.node-version }}
+      # - name: Use Node.js ${{ matrix.node-version }}
+      #   uses: actions/setup-node@v2
+      #   with:
+      #     node-version: ${{ matrix.node-version }}
 
-      - name: Install dependencies
-        run: yarn install
+      # - name: Install dependencies
+      #   run: yarn install
 
-      - name: Lint codebase
-        run: yarn eslint --ext .js,.ts,.jsx,.tsx .
+      # - name: Lint codebase
+      #   run: yarn eslint --ext .js,.ts,.jsx,.tsx .
 
-      - name: Build shared
-        run: yarn build
-        working-directory: packages/apollo-shared
+      # - name: Build shared
+      #   run: yarn build
+      #   working-directory: packages/apollo-shared
 
-      - name: Build collaboration server
-        run: yarn build
-        working-directory: packages/apollo-collaboration-server
-
-      - name: Build plugin
-        run: yarn build
-        working-directory: packages/jbrowse-plugin-apollo
+      # - name: Build plugin
+      #   run: yarn build
+      #   working-directory: packages/jbrowse-plugin-apollo
 
       - name: Start SSH Agent, add SSH key and deploy to openstack
         run: |
           eval `ssh-agent -s`
           echo "${{ secrets.KEY }}" | ssh-add -
-          scp -o StrictHostKeyChecking=no -r ./* ${{ vars.OS_USERNAME }}@${{ vars.OS_SERVER }}:/home/ubuntu/github-workflow/
-          ssh -o StrictHostKeyChecking=no ${{ vars.OS_USERNAME }}@${{ vars.OS_SERVER }} 'cd /home/ubuntu/github-workflow/ && ls -la'
+          # scp -o StrictHostKeyChecking=no -r ./packages/jbrowse-plugin-apollo/dist/* ${{ vars.OS_USERNAME }}@${{ vars.OS_SERVER }}:/var/www/apollo-plugin/
+          # scp -o StrictHostKeyChecking=no -r ./packages/jbrowse-plugin-apollo/jbrowse_config.json ${{ vars.OS_USERNAME }}@${{ vars.OS_SERVER }}:/var/www/apollo-plugin/
+          rsync -e "ssh -o StrictHostKeyChecking=no" -avz ./ ${{ vars.OS_USERNAME }}@${{ vars.OS_SERVER }}:/home/ubuntu/Apollo3/
+          ssh -o StrictHostKeyChecking=no -x ${{ vars.OS_USERNAME }}@${{ vars.OS_SERVER }} 'sudo systemctl restart apache2 && /home/ubuntu/apollo3.sh'
         env:
           SSH_AUTH_SOCK: /tmp/ssh-agent.sock
