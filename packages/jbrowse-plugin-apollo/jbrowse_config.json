@@ -20,7 +20,7 @@
   "plugins": [
     {
       "name": "Apollo",
-      "url": "http://dev-apollo-ebi.cloudns.ph:9000/jbrowse-plugin-apollo.umd.development.js"
+      "url": "https://webapollo.havana-infra.tk:2053/jbrowse-plugin-apollo.umd.development.js"
     }
   ],
   "internetAccounts": [
@@ -29,15 +29,15 @@
       "internetAccountId": "apolloInternetAccount",
       "name": "Demo Server",
       "description": "A server hosting a small fictional organism to demonstrate Apollo capabilities",
-      "domains": ["dev-apollo-ebi.cloudns.ph:3999"],
-      "baseURL": "http://dev-apollo-ebi.cloudns.ph:3999",
+      "domains": ["webapollo.havana-infra.tk:2083"],
+      "baseURL": "https://webapollo.havana-infra.tk:2083",
       "google": {
-        "authEndpoint": "http://dev-apollo-ebi.cloudns.ph:3999/auth/google" ,
+        "authEndpoint": "https://webapollo.havana-infra.tk:2083/auth/google" ,
         "clientId": "12756942729-sibrud76bof5t45v9alhmjs7509s6dic.apps.googleusercontent.com",
         "scopes": "profile,email"
       },
       "microsoft": {
-        "authEndpoint": "http://dev-apollo-ebi.cloudns.ph:3999/auth/microsoft" ,
+        "authEndpoint": "https://webapollo.havana-infra.tk:2083/auth/microsoft" ,
         "clientId": "fabdd045-163c-4712-9d40-dbbb043b3090",
         "scopes": "user.read"
       }
