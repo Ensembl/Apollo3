@@ -43,7 +43,7 @@ jobs:
           eval `ssh-agent -s`
           echo "${{ secrets.KEY }}" | ssh-add -
           # scp -o StrictHostKeyChecking=no -r ./packages/jbrowse-plugin-apollo/dist/* ${{ vars.OS_USERNAME }}@${{ vars.OS_SERVER }}:/var/www/apollo-plugin/
-          # scp -o StrictHostKeyChecking=no -r ./packages/jbrowse-plugin-apollo/jbrowse_config.json ${{ vars.OS_USERNAME }}@${{ vars.OS_SERVER }}:/var/www/apollo-plugin/
+          scp -o StrictHostKeyChecking=no -r ./packages/jbrowse-plugin-apollo/jbrowse_config.json ${{ vars.OS_USERNAME }}@${{ vars.OS_SERVER }}:/home/ubuntu/Apollo3/
           rsync -e "ssh -o StrictHostKeyChecking=no" -avz ./ ${{ vars.OS_USERNAME }}@${{ vars.OS_SERVER }}:/home/ubuntu/Apollo3/
           ssh -o StrictHostKeyChecking=no -x ${{ vars.OS_USERNAME }}@${{ vars.OS_SERVER }} 'sudo systemctl restart apache2 && /home/ubuntu/apollo3.sh'
         env:
