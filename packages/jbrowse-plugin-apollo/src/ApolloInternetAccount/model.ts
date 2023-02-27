@@ -25,6 +25,7 @@ import {
   ManageUsers,
 } from '../components'
 import { ApolloSessionModel, Collaborator } from '../session'
+import { createFetchErrorMessage } from '../util'
 import { AuthTypeSelector } from './components/AuthTypeSelector'
 import { ApolloInternetAccountConfigModel } from './configSchema'
 
@@ -33,9 +34,9 @@ interface Menu {
   menuItems: MenuItem[]
 }
 
-type AuthType = 'google' | 'microsoft'
+type AuthType = 'google' | 'microsoft' | 'guest'
 
-type Role = ('admin' | 'user' | 'readOnly')[]
+type Role = 'admin' | 'user' | 'readOnly'
 
 export interface UserLocation {
   assemblyId: string
@@ -68,17 +69,11 @@ const stateModelFactory = (
       get googleAuthEndpoint(): string {
         return getConf(self, ['google', 'authEndpoint'])
       },
-      get googleScopes(): string {
-        return getConf(self, ['google', 'scopes'])
-      },
       get microsoftClientId(): string {
         return getConf(self, ['microsoft', 'clientId'])
       },
       get microsoftAuthEndpoint(): string {
         return getConf(self, ['microsoft', 'authEndpoint'])
-      },
-      get microsoftScopes(): string {
-        return getConf(self, ['microsoft', 'scopes'])
       },
       get internetAccountType() {
         return 'ApolloInternetAccount'
@@ -86,13 +81,8 @@ const stateModelFactory = (
       get baseURL(): string {
         return getConf(self, 'baseURL')
       },
-      getRole() {
-        const token = self.retrieveToken()
-        if (!token) {
-          return undefined
-        }
-        const dec = getDecodedToken(token)
-        return dec.roles
+      get allowGuestUser(): boolean {
+        return getConf(self, 'allowGuestUser')
       },
       getUserId() {
         const token = self.retrieveToken()
@@ -103,6 +93,29 @@ const stateModelFactory = (
         return dec.id
       },
     }))
+    .actions((self) => {
+      let roleNotificationSent = false
+      return {
+        getRole() {
+          const token = self.retrieveToken()
+          if (!token) {
+            return undefined
+          }
+          const dec = getDecodedToken(token)
+          const { role } = dec
+          if (!role && !roleNotificationSent) {
+            const { session } = getRoot(self)
+            session.notify(
+              'You have registered as a user but have not been given access. Ask your administrator to enable access for your account.',
+              'warning',
+            )
+            // notify
+            roleNotificationSent = true
+          }
+          return role
+        },
+      }
+    })
     .volatile((self) => ({
       authType: undefined as AuthType | undefined,
       socket: io(self.baseURL),
@@ -114,6 +127,23 @@ const stateModelFactory = (
       },
     }))
     .actions((self) => ({
+      async getTokenFromUser(
+        resolve: (token: string) => void,
+        reject: (error: Error) => void,
+      ): Promise<void> {
+        const { baseURL } = self
+        const url = new URL('auth/guest', baseURL)
+        const response = await fetch(url)
+        if (!response.ok) {
+          const errorMessage = await createFetchErrorMessage(
+            response,
+            'Error when logging in as guest',
+          )
+          return reject(new Error(errorMessage))
+        }
+        const { token } = await response.json()
+        resolve(token)
+      },
       addSocketListeners() {
         const { session } = getRoot(self)
         const { notify } = session
@@ -180,9 +210,11 @@ const stateModelFactory = (
             method: 'GET',
           })
           if (!response.ok) {
-            throw new Error(
-              `Error when fetching server LastChangeSequence — ${response.status}`,
+            const errorMessage = yield createFetchErrorMessage(
+              response,
+              'Error when fetching server LastChangeSequence',
             )
+            throw new Error(errorMessage)
           }
           const changes = yield response.json()
           const sequence = changes.length ? changes[0].sequence : 0
@@ -267,10 +299,7 @@ const stateModelFactory = (
     .actions((self) => ({
       addMenuItems(role: Role) {
         if (
-          !(
-            role.includes('admin') &&
-            isAbstractMenuManager(pluginManager.rootModel)
-          )
+          !(role === 'admin' && isAbstractMenuManager(pluginManager.rootModel))
         ) {
           return
         }
@@ -409,10 +438,13 @@ const stateModelFactory = (
       },
       initializeFromToken(token: string) {
         const payload = getDecodedToken(token)
-        this.initialize(payload.roles)
+        this.initialize(payload.role)
       },
-      initialize(role: Role) {
-        if (role.includes('admin')) {
+      initialize(role?: Role) {
+        if (!role) {
+          return
+        }
+        if (role === 'admin') {
           this.addMenuItems(role)
         }
         // Get and set server last change sequnece into session storage
@@ -477,7 +509,6 @@ const stateModelFactory = (
             domains: self.domains,
             authEndpoint: self.googleAuthEndpoint,
             clientId: self.googleClientId,
-            scopes: self.googleScopes,
           },
         }),
       microsoftAuthInternetAccount: OAuthInternetAccountModelFactory(
@@ -508,8 +539,7 @@ const stateModelFactory = (
             description: `${self.description}-apolloMicrosoft`,
             domains: self.domains,
             authEndpoint: self.microsoftAuthEndpoint,
-            clientId: 'fabdd045-163c-4712-9d40-dbbb043b3090',
-            scopes: self.microsoftScopes,
+            clientId: self.microsoftClientId,
           },
         }),
     }))
@@ -517,19 +547,24 @@ const stateModelFactory = (
       setAuthType(authType: AuthType) {
         self.authType = authType
       },
-      retrieveToken() {
-        if (self.authType === 'google') {
-          return self.googleAuthInternetAccount.retrieveToken()
-        }
-        if (self.authType === 'microsoft') {
-          return self.microsoftAuthInternetAccount.retrieveToken()
-        }
-        throw new Error(`Unknown authType "${self.authType}"`)
-      },
     }))
     .actions((self) => {
+      const { retrieveToken: superRetrieveToken, getFetcher: superGetFetcher } =
+        self
       let authTypePromise: Promise<AuthType> | undefined = undefined
       return {
+        retrieveToken() {
+          if (self.authType === 'google') {
+            return self.googleAuthInternetAccount.retrieveToken()
+          }
+          if (self.authType === 'microsoft') {
+            return self.microsoftAuthInternetAccount.retrieveToken()
+          }
+          if (self.authType === 'guest') {
+            return superRetrieveToken()
+          }
+          throw new Error(`Unknown authType "${self.authType}"`)
+        },
         getFetcher(
           location?: UriLocation,
         ): (input: RequestInfo, init?: RequestInit) => Promise<Response> {
@@ -546,14 +581,17 @@ const stateModelFactory = (
                   authTypePromise = Promise.resolve('google')
                 } else if (self.googleAuthInternetAccount.retrieveToken()) {
                   authTypePromise = Promise.resolve('microsoft')
+                } else if (superRetrieveToken()) {
+                  authTypePromise = Promise.resolve('guest')
                 } else {
                   authTypePromise = new Promise((resolve, reject) => {
                     const { session } = getRoot(self)
+                    const { baseURL, name, allowGuestUser } = self
                     session.queueDialog((doneCallback: () => void) => [
                       AuthTypeSelector,
                       {
-                        baseURL: self.baseURL,
-                        name: self.name,
+                        baseURL,
+                        name,
                         handleClose: (newAuthType?: AuthType | Error) => {
                           if (!newAuthType) {
                             reject(new Error('user cancelled entry'))
@@ -564,6 +602,9 @@ const stateModelFactory = (
                           }
                           doneCallback()
                         },
+                        google: Boolean(self.googleClientId),
+                        microsoft: Boolean(self.microsoftClientId),
+                        allowGuestUser,
                       },
                     ])
                   })
@@ -572,19 +613,31 @@ const stateModelFactory = (
               }
             }
             self.setAuthType(authType)
+            let fetchToUse: (
+              input: RequestInfo,
+              init?: RequestInit,
+            ) => Promise<Response>
             if (authType === 'google') {
-              return self.googleAuthInternetAccount.getFetcher(location)(
-                input,
-                init,
-              )
+              fetchToUse = self.googleAuthInternetAccount.getFetcher(location)
+            } else if (authType === 'microsoft') {
+              fetchToUse =
+                self.microsoftAuthInternetAccount.getFetcher(location)
+            } else if (authType === 'guest') {
+              fetchToUse = superGetFetcher(location)
+            } else {
+              throw new Error(`Unknown authType "${authType}"`)
             }
-            if (authType === 'microsoft') {
-              return self.microsoftAuthInternetAccount.getFetcher(location)(
-                input,
-                init,
-              )
+            const response = await fetchToUse(input, init)
+            if (response.status === 401) {
+              if (authType === 'google') {
+                self.googleAuthInternetAccount.removeToken()
+              } else if (authType === 'microsoft') {
+                self.microsoftAuthInternetAccount.removeToken()
+              } else {
+                self.removeToken()
+              }
             }
-            throw new Error(`Unknown authType "${authType}"`)
+            return response
           }
         },
       }

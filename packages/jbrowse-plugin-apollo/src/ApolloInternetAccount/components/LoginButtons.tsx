@@ -1,3 +1,4 @@
+import AccountCircleIcon from '@mui/icons-material/AccountCircle'
 import { Button, ButtonProps } from '@mui/material'
 import React from 'react'
 import { makeStyles } from 'tss-react/mui'
@@ -18,11 +19,12 @@ const useStyles = makeStyles()((theme) => ({
 
 export function GoogleButton(props: ButtonProps) {
   const { classes } = useStyles()
+  const { disabled } = props
   return (
     <Button
       className={classes.loginButton}
       variant="outlined"
-      startIcon={<Google />}
+      startIcon={<Google color={disabled ? 'disabled' : undefined} />}
       {...props}
     >
       Sign in with Google
@@ -32,14 +34,29 @@ export function GoogleButton(props: ButtonProps) {
 
 export function MicrosoftButton(props: ButtonProps) {
   const { classes } = useStyles()
+  const { disabled } = props
   return (
     <Button
       className={classes.loginButton}
       variant="outlined"
-      startIcon={<Microsoft />}
+      startIcon={<Microsoft color={disabled ? 'disabled' : undefined} />}
       {...props}
     >
       Sign in with Microsoft
+    </Button>
+  )
+}
+
+export function GuestButton(props: ButtonProps) {
+  const { classes } = useStyles()
+  return (
+    <Button
+      className={classes.loginButton}
+      variant="outlined"
+      startIcon={<AccountCircleIcon fontSize="small" />}
+      {...props}
+    >
+      Continue as Guest
     </Button>
   )
 }

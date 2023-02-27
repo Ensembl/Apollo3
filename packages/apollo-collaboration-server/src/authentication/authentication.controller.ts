@@ -39,7 +39,10 @@ export class AuthenticationController {
     }
 
     const { appURL } = (req.authInfo as { state: { appURL: string } }).state
-    return { url: `${appURL}/?access_token=${req.user.token}` }
+    const url = new URL(appURL)
+    const searchParams = new URLSearchParams({ access_token: req.user.token })
+    url.search = searchParams.toString()
+    return { url: url.toString() }
   }
 
   @Get('microsoft')
@@ -56,6 +59,14 @@ export class AuthenticationController {
     }
 
     const { appURL } = (req.authInfo as { state: { appURL: string } }).state
-    return { url: `${appURL}/?access_token=${req.user.token}` }
+    const url = new URL(appURL)
+    const searchParams = new URLSearchParams({ access_token: req.user.token })
+    url.search = searchParams.toString()
+    return { url: url.toString() }
+  }
+
+  @Get('guest')
+  guestLogin() {
+    return this.authService.guestLogin()
   }
 }
