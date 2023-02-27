@@ -61,8 +61,7 @@ async function bootstrap() {
     }),
   )
 
-  const server = await app.listen(PORT)
-  server.setTimeout(600000);
+  await app.listen(PORT)
   // eslint-disable-next-line no-console
   console.log(
     `Application is running on: ${await app.getUrl()}, CORS = ${cors}`,
