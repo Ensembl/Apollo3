@@ -94,6 +94,7 @@ export class AuthenticationService {
       if (newUserRole !== 'none') {
         newUser.role = newUserRole
       }
+      this.logger.debug(`User not found, creating new user ${JSON.stringify(newUser)}`)
       user = await this.usersService.addNew(newUser)
     }
     this.logger.debug(`User found in Mongo: ${JSON.stringify(user)}`)
