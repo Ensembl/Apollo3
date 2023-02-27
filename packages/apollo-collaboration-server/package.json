@@ -36,6 +36,7 @@
     "@nestjs/websockets": "^9.2.1",
     "apollo-schemas": "workspace:^",
     "apollo-shared": "workspace:^",
+    "connect-timeout": "^1.9.0",
     "express-session": "^1.17.3",
     "joi": "^17.7.0",
     "mobx": "^6.6.1",
