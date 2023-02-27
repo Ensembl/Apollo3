@@ -81,6 +81,8 @@ export class AuthenticationService {
   async logIn(name: string, email: string) {
     // Find user from Mongo
     let user = await this.usersService.findByEmail(email)
+    this.logger.debug(`User : ${JSON.stringify(user)}`)
+
     if (!user) {
       const userCount = await this.usersService.getCount()
       const guestUser = await this.usersService.findGuest()
