@@ -36,6 +36,7 @@ const validationSchema = Joi.object({
   GOOGLE_CLIENT_ID: Joi.string(),
   GOOGLE_CLIENT_ID_FILE: Joi.string(),
   GOOGLE_CLIENT_SECRET: Joi.string(),
+  GOOGLE_CALLBACK_URL: Joi.string(),
   GOOGLE_CLIENT_SECRET_FILE: Joi.string(),
   MICROSOFT_CLIENT_ID: Joi.string(),
   MICROSOFT_CLIENT_ID_FILE: Joi.string(),

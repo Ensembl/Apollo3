@@ -10,6 +10,7 @@ import { AuthenticationService } from '../../authentication/authentication.servi
 interface ConfigValues {
   GOOGLE_CLIENT_ID?: string
   GOOGLE_CLIENT_ID_FILE?: string
+  GOOGLE_CALLBACK_URL?: string
   GOOGLE_CLIENT_SECRET?: string
   GOOGLE_CLIENT_SECRET_FILE?: string
   URL: string
@@ -50,13 +51,13 @@ export class GoogleStrategy extends PassportStrategy(Strategy) {
         )!
         clientSecret = fs.readFileSync(clientSecretFile, 'utf-8').trim()
       }
-      const urlString = configService.get('URL', { infer: true })
+      const urlString = configService.get('GOOGLE_CALLBACK_URL', { infer: true })
       const callbackURI = new URL(urlString)
-      const port = configService.get('PORT', { infer: true })
-      callbackURI.port = String(port)
-      callbackURI.pathname = `${callbackURI.pathname}${
-        callbackURI.pathname.endsWith('/') ? '' : '/'
-      }auth/google/redirect`
+      // const port = configService.get('PORT', { infer: true })
+      // callbackURI.port = String(port)
+      // callbackURI.pathname = `${callbackURI.pathname}${
+      //   callbackURI.pathname.endsWith('/') ? '' : '/'
+      // }auth/google/redirect`
       callbackURL = callbackURI.href
     }
     super({
