@@ -49,7 +49,7 @@ export class UsersService {
   }
 
   async findByEmail(email: string) {
-    return this.userModel.findOne({ email }).select('username email role').exec()
+    return this.userModel.findOne({ email }).exec()
   }
 
   async findByRole(role: Role) {
