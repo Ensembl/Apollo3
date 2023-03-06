@@ -8,12 +8,8 @@ import {
   isAbstractMenuManager,
 } from '@jbrowse/core/util'
 import type AuthenticationPlugin from '@jbrowse/plugin-authentication'
-import {
-  Change,
-  SerializedChange,
-  getDecodedToken,
-  makeUserSessionId,
-} from 'apollo-shared'
+import { Change, SerializedChange } from 'apollo-common'
+import { getDecodedToken, makeUserSessionId } from 'apollo-shared'
 import { autorun } from 'mobx'
 import { Instance, flow, getRoot, types } from 'mobx-state-tree'
 import { io } from 'socket.io-client'
@@ -44,6 +40,8 @@ export interface UserLocation {
   start: number
   end: number
 }
+
+const inWebWorker = typeof sessionStorage === 'undefined'
 
 const stateModelFactory = (
   configSchema: ApolloInternetAccountConfigModel,
@@ -419,6 +417,9 @@ const stateModelFactory = (
       afterAttach() {
         autorun(
           async (reaction) => {
+            if (inWebWorker) {
+              return
+            }
             try {
               const { getRole, authType } = self
               if (!authType) {
@@ -549,10 +550,25 @@ const stateModelFactory = (
       },
     }))
     .actions((self) => {
-      const { retrieveToken: superRetrieveToken, getFetcher: superGetFetcher } =
-        self
+      const {
+        retrieveToken: superRetrieveToken,
+        getFetcher: superGetFetcher,
+        getPreAuthorizationInformation: superGetPreAuthorizationInformation,
+      } = self
       let authTypePromise: Promise<AuthType> | undefined = undefined
       return {
+        async getPreAuthorizationInformation(location: UriLocation) {
+          const preAuthInfo = await superGetPreAuthorizationInformation(
+            location,
+          )
+          return {
+            ...preAuthInfo,
+            authInfo: {
+              ...preAuthInfo.authInfo,
+              authType: await authTypePromise,
+            },
+          }
+        },
         retrieveToken() {
           if (self.authType === 'google') {
             return self.googleAuthInternetAccount.retrieveToken()
@@ -574,10 +590,12 @@ const stateModelFactory = (
           ): Promise<Response> => {
             let { authType } = self
             if (!authType) {
-              if (authTypePromise) {
-                authType = await authTypePromise
-              } else {
-                if (self.googleAuthInternetAccount.retrieveToken()) {
+              if (!authTypePromise) {
+                if (location?.internetAccountPreAuthorization) {
+                  authTypePromise = Promise.resolve(
+                    location.internetAccountPreAuthorization.authInfo.authType,
+                  )
+                } else if (self.googleAuthInternetAccount.retrieveToken()) {
                   authTypePromise = Promise.resolve('google')
                 } else if (self.googleAuthInternetAccount.retrieveToken()) {
                   authTypePromise = Promise.resolve('microsoft')
@@ -609,8 +627,8 @@ const stateModelFactory = (
                     ])
                   })
                 }
-                authType = await authTypePromise
               }
+              authType = await authTypePromise
             }
             self.setAuthType(authType)
             let fetchToUse: (

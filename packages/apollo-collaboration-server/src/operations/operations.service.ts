@@ -1,5 +1,6 @@
-import { Injectable, Logger } from '@nestjs/common'
+import { Inject, Injectable, Logger, forwardRef } from '@nestjs/common'
 import { InjectConnection, InjectModel } from '@nestjs/mongoose'
+import { Operation, operationRegistry } from 'apollo-common'
 import {
   Assembly,
   AssemblyDocument,
@@ -14,15 +15,12 @@ import {
   User,
   UserDocument,
 } from 'apollo-schemas'
-import {
-  Operation,
-  SerializedOperation,
-  operationRegistry,
-} from 'apollo-shared'
 import { Connection, Model } from 'mongoose'
 
 import { CountersService } from '../counters/counters.service'
 import { FilesService } from '../files/files.service'
+import { OntologiesService } from '../ontologies/ontologies.service'
+import { PluginsService } from '../plugins/plugins.service'
 
 @Injectable()
 export class OperationsService {
@@ -41,18 +39,22 @@ export class OperationsService {
     private readonly refSeqChunkModel: Model<RefSeqChunkDocument>,
     private readonly filesService: FilesService,
     private readonly countersService: CountersService,
+    private readonly pluginsService: PluginsService,
     @InjectConnection() private connection: Connection,
+    @Inject(forwardRef(() => OntologiesService))
+    private readonly ontologiesService: OntologiesService,
   ) {}
 
   private readonly logger = new Logger(OperationsService.name)
 
   async executeOperation<T extends Operation>(
-    serializedOperation: SerializedOperation,
+    serializedOperation: ReturnType<T['toJSON']>,
   ): Promise<ReturnType<T['executeOnServer']>> {
+    const { logger } = this
     const OperationType = operationRegistry.getOperationType(
       serializedOperation.typeName,
     )
-    const operation = new OperationType(serializedOperation)
+    const operation = new OperationType(serializedOperation, { logger })
     const session = await this.connection.startSession()
     const result = await operation.execute({
       typeName: 'Server',
@@ -65,6 +67,8 @@ export class OperationsService {
       session,
       filesService: this.filesService,
       counterService: this.countersService,
+      pluginsService: this.pluginsService,
+      ontology: this.ontologiesService.ontology,
       user: '',
     })
     session.endSession()

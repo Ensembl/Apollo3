@@ -6,15 +6,13 @@ import {
   ApolloAssemblyI,
 } from 'apollo-mst'
 
+import { changeRegistry } from './ChangeTypeRegistry'
 import {
   BackendDataStore,
-  LocalGFF3DataStore,
   Operation,
   OperationOptions,
   SerializedOperation,
-  ServerDataStore,
-} from '../../Operations/abstract'
-import { changeRegistry } from '..'
+} from './Operation'
 
 export interface ClientDataStore {
   typeName: 'Client'
@@ -28,12 +26,15 @@ export interface ClientDataStore {
   deleteAssembly(assemblyId: string): void
 }
 
-export { ServerDataStore, LocalGFF3DataStore }
-
 export type SerializedChange = SerializedOperation
 export type ChangeOptions = OperationOptions
 
 export type DataStore = BackendDataStore | ClientDataStore
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export function isChange(thing: any): thing is Change {
+  return (thing as Change).executeOnClient !== undefined
+}
 
 export abstract class Change extends Operation {
   /**
@@ -49,17 +50,17 @@ export abstract class Change extends Operation {
     return new ChangeType(json, options?.logger && { logger: options.logger })
   }
 
-  async execute(backend: DataStore): Promise<void> {
+  async execute(backend: DataStore): Promise<unknown> {
     const backendType = backend.typeName
     if (backendType === 'LocalGFF3' || backendType === 'Server') {
-      super.execute(backend)
-    } else if (backendType === 'Client') {
-      return this.executeOnClient(backend)
-    } else {
-      throw new Error(
-        `no change implementation for backend type '${backendType}'`,
-      )
+      return super.execute(backend)
     }
+    if (backendType === 'Client') {
+      return this.executeOnClient(backend)
+    }
+    throw new Error(
+      `no change implementation for backend type '${backendType}'`,
+    )
   }
 
   abstract executeOnClient(backend: ClientDataStore): Promise<void>

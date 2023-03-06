@@ -25,6 +25,46 @@ interface CreateFileDto {
   readonly user: string
 }
 
+interface OboJsonNode {
+  id: string
+  meta: {
+    definition: { val: string; xrefs: string[] }
+    comments: string[]
+    synonyms: { pred: string; val: string; xrefs: string[] }[]
+    basicPropertyValues: { pred: string; val: string }[]
+  }
+  type: string
+  lbl: string
+}
+
+interface OboJsonEdge {
+  sub: string
+  pred: string
+  obj: string
+}
+
+interface OboJsonMetadata {
+  basicPropertyValues: { pred: string; val: string }[]
+  version: string
+  xrefs?: string[]
+  subsets?: string[]
+}
+
+export interface OboJson {
+  graphs: [
+    {
+      nodes: OboJsonNode[]
+      edges: OboJsonEdge[]
+      id: string
+      meta: OboJsonMetadata
+      equivalentNodesSets?: string[]
+      logicalDefinitionAxioms?: string[]
+      domainRangeAxioms?: string[]
+      propertyChainAxioms?: string[]
+    },
+  ]
+}
+
 export interface ServerDataStore {
   typeName: 'Server'
   featureModel: Model<FeatureDocument>
@@ -40,11 +80,20 @@ export interface ServerDataStore {
     create(createFileDto: CreateFileDto): void
     remove(id: string): void
   }
+  pluginsService: {
+    evaluateExtensionPoint(
+      extensionPointName: string,
+      extendee: unknown,
+      props?: Record<string, unknown>,
+    ): void
+  }
   counterService: {
     getNextSequenceValue(sequenceName: string): Promise<number>
   }
+  ontology: OboJson
   user: string
 }
+export type OboJsonShared = OboJson
 
 export interface SerializedOperation {
   typeName: string
@@ -69,7 +118,12 @@ export abstract class Operation implements SerializedOperation {
   async execute(backend: BackendDataStore): Promise<unknown> {
     const backendType = backend.typeName
     if (backendType === 'Server') {
-      return this.executeOnServer(backend)
+      const initialResult = this.executeOnServer(backend)
+      return backend.pluginsService.evaluateExtensionPoint(
+        `${this.typeName}-transformResults`,
+        initialResult,
+        { operation: this, backend },
+      )
     }
     if (backendType === 'LocalGFF3') {
       return this.executeOnLocalGFF3(backend)

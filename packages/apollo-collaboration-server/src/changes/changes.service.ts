@@ -5,6 +5,11 @@ import {
 } from '@nestjs/common'
 import { InjectModel } from '@nestjs/mongoose'
 import {
+  Change as BaseChange,
+  isAssemblySpecificChange,
+  isFeatureChange,
+} from 'apollo-common'
+import {
   Assembly,
   AssemblyDocument,
   Change,
@@ -22,11 +27,8 @@ import {
 } from 'apollo-schemas'
 import {
   AddFeatureChange,
-  AssemblySpecificChange,
-  Change as BaseChange,
-  CopyFeatureChange,
   DecodedJWT,
-  FeatureChange,
+  isCopyFeatureChange,
   makeUserSessionId,
   validationRegistry,
 } from 'apollo-shared'
@@ -36,6 +38,8 @@ import { CountersService } from '../counters/counters.service'
 import { FilesService } from '../files/files.service'
 import { ChangeMessage } from '../messages/entities/message.entity'
 import { MessagesGateway } from '../messages/messages.gateway'
+import { OntologiesService } from '../ontologies/ontologies.service'
+import { PluginsService } from '../plugins/plugins.service'
 import { FindChangeDto } from './dto/find-change.dto'
 
 export class ChangesService {
@@ -56,6 +60,8 @@ export class ChangesService {
     private readonly changeModel: Model<ChangeDocument>,
     private readonly filesService: FilesService,
     private readonly countersService: CountersService,
+    private readonly pluginsService: PluginsService,
+    private readonly ontologiesService: OntologiesService,
     private readonly messagesGateway: MessagesGateway,
   ) {}
 
@@ -67,7 +73,7 @@ export class ChangesService {
     const sequence = await this.countersService.getNextSequenceValue(
       'changeCounter',
     )
-    const uniqUserId = `${user}-${sequence}` // Same user can upload data from more than one client
+    const uniqUserId = `${user.email}-${sequence}` // Same user can upload data from more than one client
 
     const validationResult = await validationRegistry.backendPreValidate(change)
     if (!validationResult.ok) {
@@ -79,7 +85,7 @@ export class ChangesService {
     // Get some info for later broadcasting, before any features are potentially
     // deleted
     const refNames: string[] = []
-    if (change instanceof FeatureChange) {
+    if (isFeatureChange(change)) {
       // For broadcasting we need also refName
       const { changedIds } = change
       for (const changedId of changedIds) {
@@ -111,6 +117,8 @@ export class ChangesService {
           session,
           filesService: this.filesService,
           counterService: this.countersService,
+          pluginsService: this.pluginsService,
+          ontology: this.ontologiesService.ontology,
           user: uniqUserId,
         })
       } catch (e) {
@@ -206,7 +214,7 @@ export class ChangesService {
     }
     this.logger.debug(`TypeName: ${change.typeName}`)
 
-    if (!(change instanceof AssemblySpecificChange)) {
+    if (!isAssemblySpecificChange(change)) {
       return
     }
 
@@ -215,7 +223,7 @@ export class ChangesService {
 
     const userSessionId = makeUserSessionId(user)
     // In case of 'CopyFeatureChange', we need to create 'AddFeatureChange' to all connected clients
-    if (change instanceof CopyFeatureChange) {
+    if (isCopyFeatureChange(change)) {
       const [{ targetAssemblyId, newFeatureId }] = change.changes
       // Get origin top level feature
       const topLevelFeature = await this.featureModel
@@ -242,7 +250,7 @@ export class ChangesService {
           changeSequence: changeDoc.sequence,
         })
       }
-    } else if (change instanceof FeatureChange) {
+    } else if (isFeatureChange(change)) {
       for (const refName of refNames) {
         messages.push({
           changeInfo: change.toJSON(),

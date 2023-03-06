@@ -3,6 +3,7 @@ import { getConf } from '@jbrowse/core/configuration'
 import { BaseInternetAccountModel } from '@jbrowse/core/pluggableElementTypes'
 import { AbstractSessionModel, AppRootModel, Region } from '@jbrowse/core/util'
 import { LinearGenomeViewModel } from '@jbrowse/plugin-linear-genome-view'
+import { ClientDataStore as ClientDataStoreType } from 'apollo-common'
 import {
   AnnotationFeature,
   AnnotationFeatureI,
@@ -10,7 +11,6 @@ import {
   ApolloAssembly,
   ApolloRefSeq,
 } from 'apollo-mst'
-import { ClientDataStore as ClientDataStoreType } from 'apollo-shared'
 import { autorun, observable } from 'mobx'
 import {
   IAnyModelType,
@@ -89,7 +89,7 @@ const ClientDataStore = types
           self as unknown as { backendDriver: BackendDriver }
         ).backendDriver.getFeatures(region)) as AnnotationFeatureSnapshot[]
         if (!features.length) {
-          return
+          continue
         }
         const { assemblyName, refName } = region
         let assembly = self.assemblies.get(assemblyName)
@@ -404,7 +404,7 @@ export function extendSession(sessionModel: IAnyModelType) {
                 adapter: {
                   type: 'ApolloSequenceAdapter',
                   assemblyId: assembly._id,
-                  baseURL,
+                  baseURL: { uri: baseURL, locationType: 'UriLocation' },
                 },
                 metadata: {
                   internetAccountConfigId:

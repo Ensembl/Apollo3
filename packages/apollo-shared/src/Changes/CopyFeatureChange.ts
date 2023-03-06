@@ -5,7 +5,9 @@ import {
   LocalGFF3DataStore,
   SerializedFeatureChange,
   ServerDataStore,
-} from './abstract'
+  isFeatureChange,
+} from 'apollo-common'
+
 import { DeleteFeatureChange } from './DeleteFeatureChange'
 
 interface SerializedCopyFeatureChangeBase extends SerializedFeatureChange {
@@ -30,6 +32,14 @@ interface SerializedCopyFeatureChangeMultiple
 type SerializedCopyFeatureChange =
   | SerializedCopyFeatureChangeSingle
   | SerializedCopyFeatureChangeMultiple
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export function isCopyFeatureChange(thing: any): thing is CopyFeatureChange {
+  return (
+    isFeatureChange(thing) &&
+    (thing as CopyFeatureChange).changes[0].newFeatureId !== undefined
+  )
+}
 
 export class CopyFeatureChange extends FeatureChange {
   typeName = 'CopyFeatureChange' as const
@@ -176,10 +186,4 @@ export class CopyFeatureChange extends FeatureChange {
       { logger },
     )
   }
-}
-
-export function isCopyFeatureChange(
-  change: unknown,
-): change is CopyFeatureChange {
-  return (change as CopyFeatureChange).typeName === 'CopyFeatureChange'
 }
