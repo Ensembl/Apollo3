@@ -9,6 +9,7 @@ import {
   DialogTitle,
   FormControl,
   FormControlLabel,
+  LinearProgress,
   FormGroup,
   FormLabel,
   MenuItem,
@@ -54,6 +55,7 @@ export function AddAssembly({
   const [file, setFile] = useState<File | null>(null)
   const [fileType, setFileType] = useState('text/x-gff3')
   const [importFeatures, setImportFeatures] = useState(true)
+  const [uploadInprogress, setUploadInprogress] = useState(false)
   const [submitted, setSubmitted] = useState(false)
   const [selectedInternetAcount, setSelectedInternetAcount] = useState(
     apolloInternetAccounts[0],
@@ -101,11 +103,14 @@ export function AddAssembly({
     event.preventDefault()
     setErrorMessage('')
     setSubmitted(true)
+    
     // let fileChecksum = ''
     let fileId = ''
     if (!file) {
       throw new Error('must select a file')
     }
+
+    setUploadInprogress(true)
 
     // First upload file
     const { baseURL, getFetcher } = selectedInternetAcount
@@ -129,6 +134,7 @@ export function AddAssembly({
           'Error when inserting new assembly (while uploading file)',
         )
         setErrorMessage(newErrorMessage)
+        setUploadInprogress(false)
         return
       }
       const result = await response.json()
@@ -154,6 +160,7 @@ export function AddAssembly({
     changeManager.submit(change, {
       internetAccountId: selectedInternetAcount.internetAccountId,
     })
+    setUploadInprogress(false)
     notify(`Assembly "${assemblyName}" is being added`, 'info')
     handleClose()
     event.preventDefault()
@@ -162,6 +169,7 @@ export function AddAssembly({
   return (
     <Dialog open maxWidth="xl" data-testid="login-apollo">
       <DialogTitle>Add new assembly</DialogTitle>
+      {uploadInprogress && <LinearProgress />}
       <form onSubmit={onSubmit}>
         <DialogContent style={{ display: 'flex', flexDirection: 'column' }}>
           {apolloInternetAccounts.length > 1 ? (
