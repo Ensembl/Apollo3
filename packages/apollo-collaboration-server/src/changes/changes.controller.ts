@@ -1,4 +1,6 @@
-import { Body, Controller, Get, Logger, Post, Query, Req } from '@nestjs/common'
+import { Body, Controller, Get, Logger, Param, Post, Query, Req, UploadedFiles, UseInterceptors } from '@nestjs/common'
+import { FilesInterceptor } from '@nestjs/platform-express/multer';
+
 import { Change } from 'apollo-common'
 import { DecodedJWT } from 'apollo-shared'
 import { Request } from 'express'
@@ -9,10 +11,12 @@ import { Validations } from '../utils/validation/validatation.decorator'
 import { ChangesService } from './changes.service'
 import { FindChangeDto } from './dto/find-change.dto'
 
+import { FileStorageEngine, UploadedFile as UploadedApolloFile } from '../utils/FileStorageEngine'
+
 @Validations(Role.ReadOnly)
 @Controller('changes')
 export class ChangesController {
-  constructor(private readonly changesService: ChangesService) {}
+  constructor(private readonly changesService: ChangesService) { }
   private readonly logger = new Logger(ChangesController.name)
 
   /**
@@ -33,6 +37,18 @@ export class ChangesController {
       )}`,
     )
     return this.changesService.create(change, user)
+  }
+
+  @Post('upload')
+  @UseInterceptors(FilesInterceptor('files', 5, {
+    limits: { fileSize: 1024 * 1024 * 1024 * 2 },
+    storage: new FileStorageEngine()
+  }))
+  async processFile(@UploadedFiles() files: Array<UploadedApolloFile>,
+    @Body() body: { type: 'text/x-gff3' | 'text/x-fasta', assemblyName: string },
+    @Req() request: Request) {
+    const { user } = request as unknown as { user: DecodedJWT }
+    return this.changesService.upload(files, body, user)
   }
 
   @Get()

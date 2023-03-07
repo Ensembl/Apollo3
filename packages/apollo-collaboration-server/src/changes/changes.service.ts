@@ -1,3 +1,5 @@
+import ObjectID from 'bson-objectid'
+
 import {
   Logger,
   NotFoundException,
@@ -8,6 +10,7 @@ import {
   Change as BaseChange,
   isAssemblySpecificChange,
   isFeatureChange,
+  SerializedChange,
 } from 'apollo-common'
 import {
   Assembly,
@@ -30,6 +33,7 @@ import {
   DecodedJWT,
   isCopyFeatureChange,
   makeUserSessionId,
+  SerializedAddAssemblyFromFileChange,
   validationRegistry,
 } from 'apollo-shared'
 import { FilterQuery, Model } from 'mongoose'
@@ -41,6 +45,8 @@ import { MessagesGateway } from '../messages/messages.gateway'
 import { OntologiesService } from '../ontologies/ontologies.service'
 import { PluginsService } from '../plugins/plugins.service'
 import { FindChangeDto } from './dto/find-change.dto'
+
+import { UploadedFile } from 'src/utils/FileStorageEngine'
 
 export class ChangesService {
   constructor(
@@ -63,9 +69,34 @@ export class ChangesService {
     private readonly pluginsService: PluginsService,
     private readonly ontologiesService: OntologiesService,
     private readonly messagesGateway: MessagesGateway,
-  ) {}
+  ) { }
 
   private readonly logger = new Logger(ChangesService.name)
+
+  async upload(files: UploadedFile[], body: { type: any, assemblyName: string }, user: DecodedJWT) {
+    let changeDocs: ChangeDocument[] = []
+    let fileId = 1
+    for (let file of files) {
+      const fileRes: FileDocument = await this.filesService.create({
+        basename: file.originalname,
+        checksum: file.checksum,
+        type: body.type,
+        user: 'na',
+      })
+
+      const change: SerializedAddAssemblyFromFileChange = {
+        'typeName': 'AddAssemblyFromFileChange',
+        'assembly': new ObjectID().toHexString(),
+        'assemblyName': body.assemblyName + fileId++,
+        'fileId': fileRes._id
+      }
+
+      // process in background
+      this.create(BaseChange.fromJSON(change), user)
+    }
+  }
+
+
 
   async create(change: BaseChange, user: DecodedJWT) {
     this.logger.debug(`Requested change: ${JSON.stringify(change)}`)
@@ -272,8 +303,7 @@ export class ChangesService {
 
     for (const message of messages) {
       this.logger.debug(
-        `Broadcasting to channels '${
-          message.channel
+        `Broadcasting to channels '${message.channel
         }', changeObject: "${JSON.stringify(message)}"`,
       )
       this.messagesGateway.create(message.channel, message)
