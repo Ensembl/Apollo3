@@ -169,7 +169,9 @@ export class DeleteFeatureChange extends FeatureChange {
         }
         parentFeature.deleteChild(deletedFeature._id)
       } else {
-        dataStore.deleteFeature(deletedFeature._id)
+        if (dataStore.getFeature(deletedFeature._id)) {
+          dataStore.deleteFeature(deletedFeature._id)
+        }
       }
     }
   }
